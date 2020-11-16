@@ -321,9 +321,7 @@ const createCube = (panoName, buf) => {
                 .write(`./panorams/${panoName}/thumbnail/mini.jpg`, () => {
                   const inputPath = path.resolve(`./panorams/${panoName}/low/*.jpg`);
                   const outputPath = path.resolve(`./panorams/${panoName}/thumbnail/0.jpg`);
-                  exec(`montage -mode concatenate -tile 6x -resize 128x128 -quality 20 -format jpg ${inputPath} ${outputPath}`, () => {
-                    return resolve();
-                  });
+                  exec
                 });
             });
           });
