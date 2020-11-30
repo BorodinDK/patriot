@@ -8,7 +8,7 @@ const sizeOf = promisify(require('image-size'));
 
 const projectPath = "/var/www/tour-360.ru/projects/patriot/"
 
-const createCube = async (filePath, panoName) => {
+const createCube = async (filePath, panoName, type) => {
 
   console.log(filePath, panoName);
 
@@ -36,7 +36,10 @@ const createCube = async (filePath, panoName) => {
       await exec([
         'convert',
         filePath,
-        '-set option:distort:viewport 6434x3217 -virtual-pixel edge -resize 6434x3217 -distort SRT "6434,3217 1 0 6434,3217"',
+        '-thumbnail 6434x3217 -background black -gravity',
+        type === 'aero' ? 'south' : 'north',
+        '-extent 6434x3217',
+        // '-set option:distort:viewport 6434x3217 -virtual-pixel edge -resize 6434x3217 -distort SRT "6434,3217 1 0 6434,3217"',
         path.resolve(__dirname, 'temp', `_${panoName}.jpg`),
       ].join(' '));
     }
@@ -78,7 +81,7 @@ const createCube = async (filePath, panoName) => {
       await exec([
         'convert',
         '-resize 1024x1024',
-        '-quality 92',
+        '-quality 65',
         path.resolve(projectPath, `./panorams/${panoName}/standard/${face}.tif`),
         path.resolve(projectPath, `./panorams/${panoName}/low/${face}.jpg`),
       ].join(' '));
@@ -86,7 +89,7 @@ const createCube = async (filePath, panoName) => {
       console.log('convert standard jpg:', face);
       await exec([
         'convert',
-        '-quality 92',
+        '-quality 76',
         path.resolve(projectPath, `./panorams/${panoName}/standard/${face}.tif`),
         path.resolve(projectPath, `./panorams/${panoName}/standard/${face}.jpg`),
       ].join(' '));
@@ -108,7 +111,8 @@ const createCube = async (filePath, panoName) => {
       `montage`,
       '-mode concatenate',
       '-tile 6x',
-      '-resize 128x',
+      // '-resize 128x',
+      '-thumbnail 128x',
       '-quality 30',
       '-format jpg',
       path.resolve(projectPath, `./panorams/${panoName}/low/*.jpg`),
