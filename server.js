@@ -10,6 +10,7 @@ const points = base('points');
 const markerIcon = base('markerIcon');
 const objects = base('objects');
 const services = base('services');
+const panoLinks = base('panoLinks');
 const units = base('units');
 const popups = base('popups');
 const dumps = base('dumps');
@@ -137,6 +138,77 @@ const updatePano = (id, fields) => tableUpdate(panorams, id, fields);
 //   });
 // });
 
+app.post('/api/patriot/point', (req, res) => {
+  createRecord(points, [{
+    title: req.body.title,
+    position: req.body.position,
+    type: req.body.type,
+    size: req.body.size,
+    markerIconId: [req.body.markerIconId],
+    [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
+  }]).then((records) => {
+    res.send({
+      status: 'success',
+      id: records[0].id,
+    })
+  }).catch((error) => {
+    res.status(500).send({
+      status: 'error',
+      error
+    });
+  });
+});
+
+app.put('/api/patriot/point/:id', (req, res) => {
+  tableUpdate(points, req.params.id, {
+    title: req.body.title,
+    position: req.body.position,
+    type: req.body.type,
+    size: req.body.size,
+    markerIconId: [req.body.markerIconId],
+    [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
+  }).then(() => {
+    res.send({
+      status: 'success'
+    })
+  }).catch((error) => {
+    res.status(500).send({
+      status: 'error',
+      error
+    });
+  });
+});
+
+app.delete('/api/patriot/point/:id', (req, res) => {
+  deleteRecord(points, [req.params.id]).then(() => {
+    res.send({
+      status: 'success'
+    })
+  }).catch((error) => {
+    res.status(500).send({
+      status: 'error',
+      error
+    });
+  });
+});
+
+
+
+app.put('/api/patriot/pano/:id', (req, res) => {
+  if (req.params.id) {
+    tableUpdate(panorams, req.params.id, req.body).then(() => {
+      res.send({
+        status: 'success'
+      })
+    }).catch((error) => {
+      res.status(500).send({
+        status: 'error',
+        error
+      });
+    });
+  }
+});
+
 app.get('/api/patriot/pano/:id', (req, res) => {
   const { id } = req.params;
   panorams.find(id, async (err, record) => {
@@ -169,7 +241,9 @@ app.get('/api/patriot/pano/:id', (req, res) => {
       await rmfr(filePath);
       await updatePano(id, {
         status: 'done',
+        heading: 0,
         image: [],
+        position: "36.817684017432754 55.56368507339336 150",
         preview: [{
           url: `https://tour-360.ru/projects/patriot/panorams/${panorama.id}/thumbnail/mini.jpg`
         }]
@@ -188,7 +262,10 @@ app.put('/api/patriot/marker/:id', (req, res) => {
       title: req.body.title || "",
       lat: req.body.lat,
       lon: req.body.lon,
+      doNotHideTitle: req.body.doNotHideTitle,
+      hideIcon: req.body.hideIcon,
       type: req.body.type,
+      size: req.body.size,
       markerIconId: [req.body.markerIconId],
       [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
     }).then(() => {
@@ -207,7 +284,10 @@ app.post('/api/patriot/marker', (req, res) => {
     title: req.body.title || "",
     lat: req.body.lat,
     lon: req.body.lon,
+    doNotHideTitle: req.body.doNotHideTitle,
+    hideIcon: req.body.hideIcon,
     type: req.body.type,
+    size: req.body.size,
     panorama: [req.body.panorama],
     markerIconId: [req.body.markerIconId],
     [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
@@ -230,6 +310,32 @@ app.delete('/api/patriot/marker/:id', (req, res) => {
     });
   }).catch(error => {
     res.status(500).send({ error, body: req.body });
+  });
+});
+
+app.delete('/api/patriot/panoLinks/:id', (req, res) => {
+  deleteRecord(panoLinks, [req.params.id]).then(() => {
+    res.send({
+      success: true,
+      body: req.body,
+    });
+  }).catch(error => {
+    res.status(500).send({ error, body: req.body });
+  });
+});
+
+
+app.post('/api/patriot/panoLinks', (req, res) => {
+  createRecord(panoLinks, [req.body]).then((records) => {
+    res.send({
+      record: records[0],
+      status: 'success'
+    })
+  }).catch((error) => {
+    res.status(500).send({
+      status: 'error',
+      error
+    });
   });
 });
 
@@ -310,6 +416,10 @@ const createObject = () => {
     view: "grid"
   });
 
+  const panoLinksPromise = getAllTable(panoLinks, {
+    view: "grid"
+  });
+
   const pointsPromise = getAllTable(points, {
     view: "grid"
   });
@@ -335,7 +445,8 @@ const createObject = () => {
     pointsPromise,
     characteristicsPromise,
     markerIconPromise,
-    popupsPromise
+    popupsPromise,
+    panoLinksPromise
   ]).then(([
      panorams,
      services,
@@ -345,48 +456,86 @@ const createObject = () => {
      points,
      characteristics,
      markerIcon,
-     popups
+     popups,
+     panoLinks
    ]) => ({
       title: "Парк Патриот",
       panorams: panorams.filter(r => r.visible),
       services: services.map(s => ({
         ...s,
-        image: s.images?.[0].url,
+        images: s.images?.map(i => i.url),
       })),
       objects,
+      panoLinks,
       markers: markers.map(m => ({
         panorama: m.panorama?.[0],
         id: m.id,
+        hideIcon: m.hideIcon || false,
+        doNotHideTitle: m.doNotHideTitle || false,
         actionId: m[m.type+'Id']?.[0] || null,
         type: m.type,
         title: m.title,
+        size: m.size,
         markerIconId: m.markerIconId?.[0] || null,
         lat: m.lat,
         lon: m.lon,
       })),
-      points,
+      points: points.map(p => ({
+        ...p,
+        actionId: p[p.type+'Id']?.[0] || null,
+        markerIconId: p.markerIconId?.[0] || null
+      })),
       markerIcon: markerIcon.map(m => ({
         id: m.id,
         name: m.name,
+        rating: m.rating || 0,
         icon: m.icon?.[0].url,
       })),
       units: units.map(u => ({
         ...u,
-        image: u.images?.[0].url,
+        images: u.images?.map(i => i.url),
         characteristics: characteristics
-          .filter(c => c.unit[0] === u.id)
-          .map(({ key, value }) => ({ key, value }))
+          .filter(c => c.unit?.[0] === u.id)
+          ?.map(({ key, value }) => ({ key, value })) || []
       })),
       popups: popups.map(m => ({
         id: m.id,
         title: m.title,
         text: m.text,
-        image: m.images?.[0].url,
+        links: m.links,
+        image: m.image?.[0].url,
       })
   )}))
 }
 
 
+app.get('/api/patriot/delete_dump/:id', async (req, res) => {
+  dumps.find(req.params.id, async (err, record) => {
+    try {
+      if (err) throw err;
+
+      await tableUpdate(dumps, req.params.id, {
+        status: 'deletion',
+      });
+
+      const { name: dumpName } = record.fields;
+      const dumpsFolder = path.resolve(projectFolder, 'dumps');
+      const dumpFolder = path.resolve(dumpsFolder, dumpName);
+      const dumpZipFile = path.resolve(dumpsFolder, dumpName + '.zip');
+
+      await rmfr(dumpFolder);
+      await rmfr(dumpZipFile);
+      await deleteRecord(dumps, req.params.id);
+      res.send("<html><body><script>window.close();</script></body></html>");
+    } catch (e) {
+      console.error('Ошибка удаления дампа', e);
+      res.status(500).send({
+        status: 'error',
+        error: e
+      })
+    }
+  });
+});
 app.get('/api/patriot/dump', async (req, res) => {
   try {
 
@@ -395,6 +544,7 @@ app.get('/api/patriot/dump', async (req, res) => {
     !existsSync(dumpsFolder) && mkdirSync(dumpsFolder);
     const dumpName = moment().format('YYYY-MM-DD_HH-mm-ss');
     const dumpFolder = path.resolve(dumpsFolder, dumpName);
+    const dumpZipFile = path.resolve(dumpsFolder, dumpName + '.zip')
     !existsSync(dumpFolder) && mkdirSync(dumpFolder);
     const dumpFilesFolder = path.resolve(dumpFolder, 'files');
     !existsSync(dumpFilesFolder) && mkdirSync(dumpFilesFolder);
@@ -427,21 +577,29 @@ app.get('/api/patriot/dump', async (req, res) => {
               if (!fileUrl) {
                 result.push(object);
               } else {
-                const fileExt = fileUrl.split('.').pop();
-                const fileName = [
-                  CryptoJS.MD5(fileUrl).toString(),
-                  fileExt
-                ].join('.');
+                const fileUrls = typeof fileUrl === 'object' ? fileUrl : [fileUrl];
+                const fileNames = [];
+                for (const file of fileUrls) {
+                  const fileExt = file.split('.').pop();
+                  const fileName = [
+                    CryptoJS.MD5(file).toString(),
+                    fileExt
+                  ].join('.');
 
-                console.log('fetch: ', fileUrl);
+                  console.log('fetch: ', file);
 
-                const response = await fetch(fileUrl);
-                const buffer = await response.buffer();
-                const filePath = path.resolve(dumpFilesFolder, fileName);
-                await fsp.writeFile(filePath, buffer);
+                  const response = await fetch(file);
+                  const buffer = await response.buffer();
+                  const filePath = path.resolve(dumpFilesFolder, fileName);
+                  await fsp.writeFile(filePath, buffer);
+                  fileNames.push(fileName);
+                }
+
+                const resultFileNames = fileNames.map(fileName => ['files', fileName].join('/'));
+
                 result.push({
                   ...object,
-                  [name]: ['files', fileName].join('/')
+                  [name]: typeof fileUrl === 'object' ? resultFileNames : resultFileNames[0]
                 })
               }
             }
@@ -453,9 +611,9 @@ app.get('/api/patriot/dump', async (req, res) => {
 
         await fsp.writeFile(path.resolve(dumpFolder, 'data.json'), JSON.stringify({
           ...object,
-          services: await prepareTable(object.services, 'image'),
-          units: await prepareTable(object.units, 'image'),
-          popups: await prepareTable(object.popups, 'image'),
+          services: await prepareTable(object.services, 'images'),
+          units: await prepareTable(object.units, 'images'),
+          popups: await prepareTable(object.popups, 'images'),
           markerIcon: await prepareTable(object.markerIcon, 'icon'),
         }));
 
@@ -472,12 +630,13 @@ app.get('/api/patriot/dump', async (req, res) => {
           zlib: { level: 9 } // Sets the compression level.
         });
 
-        const output = fs.createWriteStream(path.resolve(dumpsFolder, dumpName + '.zip'));
+        const output = fs.createWriteStream(dumpZipFile);
 
         output.on('close', async () => {
           console.log('done', dumpRecord[0].id);
           await tableUpdate(dumps, dumpRecord[0].id, {
             status: 'done',
+            size: (fs.statSync(dumpZipFile).size / (1024*1024*1024)).toFixed(2) + " GB"
           });
         });
 
@@ -495,7 +654,7 @@ app.get('/api/patriot/dump', async (req, res) => {
 
         archive.pipe(output);
         archive.directory(dumpFolder, false);
-        // archive.directory(panoramsFolder, 'panorams');
+        archive.directory(panoramsFolder, 'panorams');
 
         await archive.finalize();
       } catch (e) {
