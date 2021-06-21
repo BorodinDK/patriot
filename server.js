@@ -3,6 +3,8 @@ const exec = promisify(require('child_process').exec);
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const airtable = require('airtable');
+airtable.configure({ apiKey: 'keytbTEQ2j74Ma03T' })
 const base = require('airtable').base('app3s2vKFnIOixrfm');
 const panorams = base('panorams');
 const markers = base('markers');
@@ -58,6 +60,7 @@ app.use((req, res, next) => {
 
 const getAllTable = (table, params) => {
   const allRecords = [];
+  console.log('getAllTable', table, params)
   return table.select(params).eachPage((records, fetchNextPage) => {
     records.forEach((record) => {
       allRecords.push({
@@ -145,6 +148,8 @@ app.post('/api/patriot/point', (req, res) => {
     type: req.body.type,
     size: req.body.size,
     markerIconId: [req.body.markerIconId],
+    doNotHideTitle: req.body.doNotHideTitle,
+    hideIcon: req.body.hideIcon,
     [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
   }]).then((records) => {
     res.send({
@@ -166,6 +171,8 @@ app.put('/api/patriot/point/:id', (req, res) => {
     type: req.body.type,
     size: req.body.size,
     markerIconId: [req.body.markerIconId],
+    doNotHideTitle: req.body.doNotHideTitle,
+    hideIcon: req.body.hideIcon,
     [req.body.type + 'Id']: req.body.type !== 'info' ? [req.body.actionId] : undefined,
   }).then(() => {
     res.send({
@@ -483,7 +490,9 @@ const createObject = () => {
       points: points.map(p => ({
         ...p,
         actionId: p[p.type+'Id']?.[0] || null,
-        markerIconId: p.markerIconId?.[0] || null
+        markerIconId: p.markerIconId?.[0] || null,
+        hideIcon: p.hideIcon || false,
+        doNotHideTitle: p.doNotHideTitle || false,
       })),
       markerIcon: markerIcon.map(m => ({
         id: m.id,
@@ -573,6 +582,7 @@ app.get('/api/patriot/dump', async (req, res) => {
             for (let i = 0; i<objects.length; i++) {
               const object = objects[i];
               const fileUrl = object[name];
+              console.log('fileUrl', fileUrl);
 
               if (!fileUrl) {
                 result.push(object);
@@ -587,12 +597,18 @@ app.get('/api/patriot/dump', async (req, res) => {
                   ].join('.');
 
                   console.log('fetch: ', file);
+                  try {
+                    const response = await fetch(file);
+                    const buffer = await response.buffer();
+                    console.log('done fetch: ', file);
+                    const filePath = path.resolve(dumpFilesFolder, fileName);
+                    await fsp.writeFile(filePath, buffer);
+                    console.log('done write: ', file);
+                    fileNames.push(fileName);
 
-                  const response = await fetch(file);
-                  const buffer = await response.buffer();
-                  const filePath = path.resolve(dumpFilesFolder, fileName);
-                  await fsp.writeFile(filePath, buffer);
-                  fileNames.push(fileName);
+                  } catch (e) {
+                    console.log('Fetch error', file);
+                  }
                 }
 
                 const resultFileNames = fileNames.map(fileName => ['files', fileName].join('/'));
@@ -603,9 +619,11 @@ app.get('/api/patriot/dump', async (req, res) => {
                 })
               }
             }
+            console.log('prepareTable SUCCESS');
             return result;
           } catch (e) {
-            console.log(e);
+            console.log('error', e);
+            return [];
           }
         };
 
@@ -626,6 +644,7 @@ app.get('/api/patriot/dump', async (req, res) => {
           console.log('mogrify error:', e);
         }
 
+
         const archive = archiver('zip', {
           zlib: { level: 9 } // Sets the compression level.
         });
@@ -633,7 +652,7 @@ app.get('/api/patriot/dump', async (req, res) => {
         const output = fs.createWriteStream(dumpZipFile);
 
         output.on('close', async () => {
-          console.log('done', dumpRecord[0].id);
+          console.log('done', dumpRecord[0].id, `https://tour-360.ru/projects/patriot/dumps/${dumpName}`);
           await tableUpdate(dumps, dumpRecord[0].id, {
             status: 'done',
             size: (fs.statSync(dumpZipFile).size / (1024*1024*1024)).toFixed(2) + " GB"
@@ -680,5 +699,5 @@ app.get([
 
 
 app.listen(PORT, () => {
-  console.log(`Listening at http://localhost:${PORT}`)
+  console.log(`OK Listening at http://localhost:${PORT}`)
 })
