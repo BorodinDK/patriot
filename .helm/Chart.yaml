@@ -1,6 +1,6 @@
 apiVersion: v2
-name: maximborodin
-description: maximborodin.ru
+name: tour-360.ru-projects-patriot
+description: tour-360.ru-projects-patriot
 type: application
 version: 0.0.1
 appVersion: "0.0.1"
