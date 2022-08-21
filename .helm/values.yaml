@@ -1,7 +1,7 @@
 host: beta.tour-360.ru
 hasWww: false
 path: /projects/patriot
-name: tour-360.ru-projects-patriot
+name: tour-360-projects-patriot
 replicas: 1
 service:
   targetPort: 80

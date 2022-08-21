@@ -1,5 +1,5 @@
 apiVersion: v2
-name: tour-360.ru-projects-patriot
+name: tour-360-projects-patriot
 description: tour-360.ru-projects-patriot
 type: application
 version: 0.0.1
