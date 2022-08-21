@@ -1,12 +1,12 @@
-host: maximborodin.ru
-hasWww: true
-path: /
-name: maximborodin
+host: beta.tour-360.ru
+hasWww: false
+path: /projects/patriot
+name: tour-360.ru-projects-patriot
 replicas: 1
 service:
   targetPort: 80
   port: 80
 image:
   pullSecrets: ghcr-borodin
-  repository: ghcr.io/borodindk/maximborodin.ru
+  repository: ghcr.io/BorodinDK/patriot
   tag: master
