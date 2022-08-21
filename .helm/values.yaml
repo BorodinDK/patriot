@@ -8,5 +8,5 @@ service:
   port: 80
 image:
   pullSecrets: ghcr-borodin
-  repository: ghcr.io/BorodinDK/patriot
+  repository: ghcr.io/borodindk/patriot
   tag: master
